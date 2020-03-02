@@ -57,7 +57,7 @@ Input data
 ---------------
 OncodriveCLUSTL only requires two main inputs, the mutations file and the annotations file:
 
-- Mutations file. TSV file containing SNVs mapped to a reference genome (e.g., human hg19 or mouse c3h). This file must contain, at least, the following 5 columns with header:
+- Mutations file. TSV file containing SNVs (substitutions) mapped to a reference genome (e.g., human hg19 or mouse c3h). If other mutation types are present (insertions, deletions, double base substitutions, etc), they will be filtered out during the analysis. This file must contain, at least, the following 5 columns with header:
 
     1. CHROMOSOME: 1, 2,..., X, Y
     2. POSITION: Integer indicating the position of the mutation
