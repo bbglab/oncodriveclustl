@@ -37,24 +37,28 @@ def preprocess_dataframe(file, col_values, p_values_cutoff=None, remove_cgc=Fals
     if p_values_cutoff:
         df = df.loc[df[col_values] > p_values_cutoff]
 
-    min_pvalue = min([x for x in df[col_values].tolist() if x > 0])
-    obs = list(df[col_values].map(lambda x: -np.log10(x) if x > 0 else -np.log10(min_pvalue)))
-    data = pd.DataFrame({
-        'SYMBOL': df['SYMBOL'],
-        'SCORE': df['SCORE'],
-        'CGC': df['CGC'],
-        'obs': obs,
-        'Q': df[q_values]
-    })
+    if len(df[col_values].tolist()) > 0:
+        min_pvalue = min([x for x in df[col_values].tolist() if x > 0])
+        obs = list(df[col_values].map(lambda x: -np.log10(x) if x > 0 else -np.log10(min_pvalue)))
+        data = pd.DataFrame({
+            'SYMBOL': df['SYMBOL'],
+            'SCORE': df['SCORE'],
+            'CGC': df['CGC'],
+            'obs': obs,
+            'Q': df[q_values]
+        })
 
-    data.sort_values(by=['obs', 'SCORE', 'CGC'], ascending=[True, True, False], inplace=True)
-    exp = -np.log10(np.arange(1, len(data) + 1) / len(data))
-    exp.sort()
-    data['exp'] = exp
+        data.sort_values(by=['obs', 'SCORE', 'CGC'], ascending=[True, True, False], inplace=True)
+        exp = -np.log10(np.arange(1, len(data) + 1) / len(data))
+        exp.sort()
+        data['exp'] = exp
 
-    df = data
+        df = data
 
-    return df
+        return df
+
+    else:
+        return 'Error'
 
 
 def make_qqplot(file, col_values, top=10, output=None):
@@ -68,7 +72,7 @@ def make_qqplot(file, col_values, top=10, output=None):
         output (str): path to output file
 
     Returns:
-        None
+        error (str):  returns error if q-q plot couldn't be computed
 
     """
     # Plot params
@@ -81,29 +85,34 @@ def make_qqplot(file, col_values, top=10, output=None):
 
     data = preprocess_dataframe(file=file, col_values=col_values)
 
-    # Scatter of the p-values
-    color = np.where(data['Q'] < 0.01, '#ca0020', '#0571b0')
-    ax.scatter(data['exp'], data['obs'], color=color, alpha=0.5)
+    if type(data) != str:
 
-    # Null hypothesis
-    ax.plot(data['exp'], data['exp'], color='#ca0020', linestyle='--')
+        # Scatter of the p-values
+        color = np.where(data['Q'] < 0.01, '#ca0020', '#0571b0')
+        ax.scatter(data['exp'], data['obs'], color=color, alpha=0.5)
 
-    # Plot significant elements
-    if len(data) > top:
-        x_text = ax.get_xlim()[1] * 1.05
-        y_text = max(data['obs'])
-        delta = y_text / 15
-        sign = data[-top:].copy()
-        sign.sort_values(by='exp', ascending=False, inplace=True)
-        for count, line in sign.iterrows():
-            color = 'black' if line['CGC'] is True else 'black'
-            weight = 'demi' if line['CGC'] is True else 'normal'
-            ax.annotate(line['SYMBOL'], xy=(line['exp'], line['obs']),
-                        xytext=(x_text, y_text), color=color, fontsize=12, fontweight=weight,
-                        arrowprops=dict(color='grey', shrink=0.05, width=0.5, headwidth=5, alpha=0.20), )
-            y_text -= delta
+        # Null hypothesis
+        ax.plot(data['exp'], data['exp'], color='#ca0020', linestyle='--')
 
-    if output:
-        plt.savefig(output, bbox_inches='tight')
+        # Plot significant elements
+        if len(data) > top:
+            x_text = ax.get_xlim()[1] * 1.05
+            y_text = max(data['obs'])
+            delta = y_text / 15
+            sign = data[-top:].copy()
+            sign.sort_values(by='exp', ascending=False, inplace=True)
+            for count, line in sign.iterrows():
+                color = 'black' if line['CGC'] is True else 'black'
+                weight = 'demi' if line['CGC'] is True else 'normal'
+                ax.annotate(line['SYMBOL'], xy=(line['exp'], line['obs']),
+                            xytext=(x_text, y_text), color=color, fontsize=12, fontweight=weight,
+                            arrowprops=dict(color='grey', shrink=0.05, width=0.5, headwidth=5, alpha=0.20), )
+                y_text -= delta
 
-    plt.close()
+        if output:
+            plt.savefig(output, bbox_inches='tight')
+        plt.close()
+
+        return None
+
+    return "Q-Q plot couldn't be generated. There are no elements with p-values"

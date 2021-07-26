@@ -77,7 +77,7 @@ LOGS = {
 @click.option('--concatenate', is_flag=True, help='Calculate clustering on concatenated genomic regions (e.g., exons '
                                                   'in coding sequences)')
 @click.option('--clustplot', is_flag=True, help='Generate a needle plot with clusters for an element')
-@click.option('--qqplot', is_flag=True, help='Generate a quantile-quantile (QQ) plot for a dataset')
+@click.option('--qqplot', is_flag=True, help='Generate a quantile-quantile (Q-Q) plot for a dataset')
 @click.option('--gzip', is_flag=True, help='Gzip compress files')
 def main(input_file,
          regions_file,
@@ -398,16 +398,19 @@ def main(input_file,
     # Quantile-quantile plot
     if qqplot:
         if len(elements) < 30:
-            logger.warning('QQ-plot generated for less than 30 elements')
+            logger.warning('Q-Q plot will be generated for less than 30 elements')
         input_qqplot_file = os.path.join(output_directory, elements_output_file)
         output_qqplot_file = os.path.join(output_directory, 'quantile_quantile_plot.png')
-        qplot.make_qqplot(
+        message = qplot.make_qqplot(
             file=input_qqplot_file,
             output=output_qqplot_file,
             col_values='P_ANALYTICAL',
             top=10
         )
-        logger.info('QQ-plot plot generated at : {}'.format(output_qqplot_file))
+        if message:
+            logger.warning(message)
+        else:
+            logger.info('Q-Q plot plot generated at : {}'.format(output_qqplot_file))
     logger.info('Finished')
 
 
