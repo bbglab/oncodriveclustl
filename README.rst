@@ -34,6 +34,7 @@ You can obtain the latest code from the repository and install it with pip::
 
         $ git clone git@bitbucket.org:bbglab/oncodriveclustl.git
         $ cd oncodriveclustl
+        $ conda install -c anaconda pycurl
         $ pip install .
 
 .. note::
