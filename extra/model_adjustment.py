@@ -47,7 +47,7 @@ def calculate_ks(file, pvalue, random_set=1000, alpha=0.1):
     df.sort_values(by=[pvalue, 'SCORE', 'CGC'], ascending=[True, False, False], inplace=True)
 
     if len(df) != 0:
-        significant_pvalues = df.loc[df[pvalue] > 0.1][pvalue]
+        significant_pvalues = df.loc[df[pvalue] > alpha][pvalue]
 
         # Subset p-values > 0.1
         if len(significant_pvalues) > 1000:
