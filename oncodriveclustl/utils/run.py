@@ -18,6 +18,7 @@ from oncodriveclustl.utils import smoothing as smo
 from oncodriveclustl.utils import clustering as clu
 from oncodriveclustl.utils import score
 from oncodriveclustl.utils import analyticalpval as ap
+from oncodriveclustl.utils.mutability import Mutabilities
 
 
 # Logger
@@ -39,6 +40,8 @@ class Experiment:
                  genome,
                  groups_d,
                  path_pickle,
+                 mutability,
+                 mutability_config,
                  element_mutations_cutoff,
                  cluster_mutations_cutoff,
                  smooth_window,
@@ -94,6 +97,8 @@ class Experiment:
         self.genome = genome
         self.path_pickle = path_pickle
         self.groups_d = groups_d
+        self.mutability = mutability
+        self.mutability_config = mutability_config
         self.element_mutations_cutoff = element_mutations_cutoff
         self.cluster_mutations_cutoff = cluster_mutations_cutoff
         self.smooth_window = smooth_window + (1 - smooth_window % 2)
@@ -108,8 +113,12 @@ class Experiment:
         self.is_plot = is_plot
         self.main_seed = seed
 
+
+        logger.warning(path_pickle)
+
         # Read CGC
         if self.genome in ['hg38', 'hg19']:
+            # TODO: should we update this?
             with open(os.path.join(os.path.dirname(__file__), '../data/CGC_all_Oct15_10_29_09_2018.tsv'), 'r') as fd:
                 next(fd)
                 self.cgc_genes = set([line.split('\t')[0] for line in fd])
@@ -178,6 +187,7 @@ class Experiment:
         # Check signatures dictionaries per group
         signatures_d = defaultdict()
         for group in self.groups_d[element]:
+            logger.info(f"{group}")
             if os.path.isfile(self.path_pickle):
                 signature = pickle.load(open(self.path_pickle, "rb"))
                 try:
@@ -192,6 +202,8 @@ class Experiment:
             # Iterate through genomic regions to get their sequences
             sequence = ''
             for interval in self.regions_d[element]:
+                logger.info(f"{element} {interval}")
+                # logger.info(element)
                 probabilities = defaultdict(list)
                 expected_length = interval[1] - interval[0] + half_window*2
                 start = interval[0] - half_window - delta
@@ -202,24 +214,37 @@ class Experiment:
                     logger.error(e, element, start, size, interval[0], interval[1])
 
                 if sequence:
+                    if self.mutability:
+                        self.mutability_dict = Mutabilities(self.chromosomes_d[element], start, start + size, self.mutability_config)
                     # Search kmer probabilities
                     for n in range(delta, len(sequence)-delta):  # start to end
                         ref_kmer = sequence[n - delta: n + delta + 1]
                         prob = defaultdict(list)
                         if ref_kmer.count('N') == 0:
-                            # calculate mutational prob to any other kmer
-                            # sort alternates to keep track
-                            for alt in sorted(list(nucleot.difference({ref_kmer[self.kmer//2]}))):
-                                for group, signature in signatures_d.items():
-                                    prob[group].append(signature.get('{}>{}'.format(ref_kmer, alt), 0))
+                            ref = ref_kmer[self.kmer//2]
+                            alts = sorted(list(nucleot.difference({ref})))
+                            if self.mutability:
+                                # calculate mutational prob to any other kmer
+                                # sort alternates to keep track                                
+                                for alt in alts: # this is to iterate over the different possible mutations
+                                    for group, signature in signatures_d.items():
+                                        prob[group].append(self.mutability_dict[start + n].get((ref, alt), 0))
+
+                            else:
+                                # calculate mutational prob to any other kmer
+                                # sort alternates to keep track
+                                for alt in alts: # this is to iterate over the different possible mutations
+                                    for group, signature in signatures_d.items():
+                                        prob[group].append(signature.get('{}>{}'.format(ref_kmer, alt), 0))
                         else:
                             logger.warning('Mutational probabilities for position {0} could not be calculated. '
-                                           'Reverting {0}>ALT probabilities to 0'.format(n))
+                                        'Reverting {0}>ALT probabilities to 0'.format(n))
                             for group, signature in signatures_d.items():
                                 prob[group].extend([0, 0, 0])
                         # Extend position info
                         for group in signatures_d.keys():
                             probabilities[group].extend(prob[group])
+
 
                     # Check and add
                     for group in signatures_d.keys():

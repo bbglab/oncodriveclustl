@@ -10,6 +10,7 @@ import bgsignature as bgsign
 import click
 import daiquiri
 import pickle
+import json
 
 from oncodriveclustl.utils import cluster_plot as cplot
 from oncodriveclustl.utils import exceptions as excep
@@ -17,7 +18,7 @@ from oncodriveclustl.utils import parsing as pars
 from oncodriveclustl.utils import postprocessing as postp
 from oncodriveclustl.utils import qq_plot as qplot
 from oncodriveclustl.utils import run as exp
-
+from oncodriveclustl.utils.mutability import init_mutabilities_module
 
 # Global variables
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -69,6 +70,8 @@ LOGS = {
 @click.option('-siggroup', '--signature-group', default=None,
               help='Header of the column to group signatures calculation',
               type=click.Choice(['SIGNATURE', 'SAMPLE', 'CANCER_TYPE']))
+@click.option('-mutab', '--mutabilities-path',default=None, required=False, type=click.Path(exists=True),
+              help='Path to the mutabilities configuration file.')
 @click.option('-c', '--cores', type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=os.cpu_count(),
               help='Number of cores to use in the computation. By default it will use all the available cores.')
 @click.option('--seed', type=click.INT, default=None, help='Seed to use in the simulations')
@@ -96,6 +99,7 @@ def main(input_file,
          simulation_window,
          signature_calculation,
          signature_group,
+         mutabilities_path,
          cores,
          seed,
          log_level,
@@ -128,6 +132,7 @@ def main(input_file,
         signature_calculation (str): signature calculation, mutation frequencies (default) or mutation counts
             normalized by k-mer region counts
         signature_group (str): header of the column to group signatures. One signature will be computed for each group
+        mutabilities_path (str): path to file containing the configuration of the mutabilities.
         cores (int): number of CPUs to use
         seed (int): seed
         log_level (str): verbosity of the logger
@@ -195,6 +200,7 @@ def main(input_file,
         'n_simulations: {}'.format(n_simulations),
         'signature_calculation: {}'.format(signature_calculation),
         'signature_group: {}'.format(signature_group),
+        'mutabilities_path: {}'.format(mutabilities_path),
         'cores: {}'.format(cores),
         'gzip: {}'.format(gzip),
         'seed: {}'.format(seed)
@@ -208,6 +214,15 @@ def main(input_file,
             'Default parameters may not be optimal for your data.\n'
             'Please, read Supplementary Methods to perform model selection for your data.'
         )
+
+    if mutabilities_path is not None:
+        logger.info(f"Computing missense mut probabilities using mutabilities...")
+        mutab_config = json.load(open(mutabilities_path))
+        init_mutabilities_module(mutab_config)
+        mutability = True
+    else:
+        mutab_config = None
+        mutability = False
 
     if not input_signature and signature_calculation == 'frequencies':
         logger.warning(
@@ -350,6 +365,8 @@ def main(input_file,
                                                                             genome,
                                                                             groups_d,
                                                                             path_pickle,
+                                                                            mutability,
+                                                                            mutab_config,
                                                                             element_mutations,
                                                                             cluster_mutations,
                                                                             smooth_window,
