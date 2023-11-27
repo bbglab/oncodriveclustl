@@ -161,6 +161,19 @@ class Experiment:
             normalized_probabilities = [prob_factor * p for p in probs]
         else:
             logger.error('No mutational probabilities derived from signatures in element {}'.format(element))
+            # TODO: revise this error
+            # Whenever this is raised there is an error downstream
+            # Traceback (most recent call last):
+            # File "/home/fcalvet/bin/mambaforge/envs/oncodriveclustl/lib/python3.10/concurrent/futures/process.py", line 246, in _process_worker
+            #     r = call_item.fn(*call_item.args, **call_item.kwargs)
+            # File "/home/fcalvet/bin/mambaforge/envs/oncodriveclustl/lib/python3.10/concurrent/futures/process.py", line 205, in _process_chunk
+            #     return [fn(*args) for args in chunk]
+            # File "/home/fcalvet/bin/mambaforge/envs/oncodriveclustl/lib/python3.10/concurrent/futures/process.py", line 205, in <listcomp>
+            #     return [fn(*args) for args in chunk]
+            # File "/home/fcalvet/projects/oncodriveclustl_dev/oncodriveclustl/oncodriveclustl/utils/run.py", line 400, in simulate_and_analysis
+            #     simulations = np.random.choice(range(start_index, end_index), size=n_sim,
+            # File "numpy/random/mtrand.pyx", line 953, in numpy.random.mtrand.RandomState.choice
+            # TypeError: object of type 'bool' has no len()
             normalized_probabilities = False
 
         return normalized_probabilities
@@ -187,7 +200,7 @@ class Experiment:
         # Check signatures dictionaries per group
         signatures_d = defaultdict()
         for group in self.groups_d[element]:
-            logger.info(f"{group}")
+            # logger.info(f"{group}")
             if os.path.isfile(self.path_pickle):
                 signature = pickle.load(open(self.path_pickle, "rb"))
                 try:
@@ -202,7 +215,7 @@ class Experiment:
             # Iterate through genomic regions to get their sequences
             sequence = ''
             for interval in self.regions_d[element]:
-                logger.info(f"{element} {interval}")
+                # logger.info(f"{element} {interval}")
                 # logger.info(element)
                 probabilities = defaultdict(list)
                 expected_length = interval[1] - interval[0] + half_window*2
@@ -215,7 +228,7 @@ class Experiment:
 
                 if sequence:
                     if self.mutability:
-                        self.mutability_dict = Mutabilities(self.chromosomes_d[element], start, start + size, self.mutability_config)
+                        self.mutability_dict = Mutabilities(element, self.chromosomes_d[element], start, start + size, self.mutability_config).mutabilities_by_pos
                     # Search kmer probabilities
                     for n in range(delta, len(sequence)-delta):  # start to end
                         ref_kmer = sequence[n - delta: n + delta + 1]
@@ -228,7 +241,11 @@ class Experiment:
                                 # sort alternates to keep track                                
                                 for alt in alts: # this is to iterate over the different possible mutations
                                     for group, signature in signatures_d.items():
-                                        prob[group].append(self.mutability_dict[start + n].get((ref, alt), 0))
+                                        # logger.info(f"{start + n}\t{ref}\t{alt}\t{self.mutability_dict[start + n].get((ref, alt), 0)}")
+
+                                        # TODO: pseudocount added to ensure that no position included in
+                                        #  the regions under study has mutation probability equal to 0
+                                        prob[group].append(self.mutability_dict[start + n].get((ref, alt), 0) + 0.5) 
 
                             else:
                                 # calculate mutational prob to any other kmer
@@ -244,7 +261,10 @@ class Experiment:
                         # Extend position info
                         for group in signatures_d.keys():
                             probabilities[group].extend(prob[group])
-
+                    
+                    # logger.info(probabilities)
+                    # logger.info(f'{element}\t{start}\t{len(probabilities["mutations"])}')
+                    # logger.info("end\n\n")
 
                     # Check and add
                     for group in signatures_d.keys():
@@ -267,6 +287,8 @@ class Experiment:
         if skip:
             logger.critical('Context based mutational probabilities could not be calculated for {0}\n'
                             '{0} analysis is skipped'.format(element))
+            
+        # logger.info(f"{element} end")
 
         return probs_tree, skip
 
@@ -391,8 +413,12 @@ class Experiment:
             start_index = 3*(hotspot_begin - (mutation.region[0] - half_window))
             end_index = 3*(hotspot_end - (mutation.region[0] - half_window) + 1)  # +1, range and slice
             for interval in probs_tree[mutation.group][mutation.region[0]]:  # unique iteration
+                # if element in ["VHL//VHL","PBRM1//PBRM1","MTOR//MTOR"] and sum(interval.data[start_index:end_index]) == 0 or \
+                #                 ( mutation.region == (52563281, 52563496) ):
+                #     logger.info(f"{mutation.group}\t{mutation.region}\t{start_index}-{end_index}\t{element}\t{interval.data[start_index:end_index]}")
+                #     logger.info(f"{interval}")
                 simulations = np.random.choice(range(start_index, end_index), size=n_sim,
-                                               p=self.normalize(element, interval.data[start_index:end_index]))
+                                                p=self.normalize(element, interval.data[start_index:end_index]))
                 # Add info per simulated mutation
                 list_simulations_per_mutation = []
                 for count, index in enumerate(simulations):
@@ -612,6 +638,10 @@ class Experiment:
             logger.info("Iteration {} of {}".format(i, len(analyzed_elements)))
             second_seed = chunk_seed_list[(i - 1)]
 
+            # TODO
+            # see if we can parallelize this loop
+            # the option of adding mutabilities slows down oncodriveclustl
+            # since it is sequentially loading the mutabilities of each element
             for element in elements:
                 # Calculate observed results
                 observed_clusters_d[element], observed_scores_d[element] = self.analysis(

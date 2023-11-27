@@ -292,7 +292,7 @@ def main(input_file,
         
         By default, all substutions are taken into account to calculate the relative frequencies for each
         k-mer ref>alt. 
-         
+        
         Alternatively, when specified through '--signature-calculation region_normalized', k-mer mutation counts 
         can be normalized by the k-mer counts in the regions under analysis listed in 'regions_file'. In this case, 
         only substitutions that fall inside the regions will contribute to the signature calculation.         

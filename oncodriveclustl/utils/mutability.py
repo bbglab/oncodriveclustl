@@ -58,7 +58,8 @@ class MutabilityTabixReader:
         self.alt_pos = conf['alt']
         self.pos_pos = conf['pos']
         self.mutability_pos = conf['mutab']
-        self.element_pos = conf['element']
+        self.element_pos = None
+        # self.element_pos = conf['element']
 
     def __enter__(self):
         self.tb = tabix.open(self.file)
@@ -151,8 +152,8 @@ class Mutabilities(object):
         self.conf_ref = config['ref']
         self.conf_alt = config['alt']
         self.conf_pos = config['pos']
-        self.conf_element = config['element']
-        self.conf_extra = config['extra']
+        # self.conf_element = config['element']
+        # self.conf_extra = config['extra']
 
         # mutabilities to load
         # self.mutabilities_by_pos = defaultdict(list)
@@ -211,6 +212,7 @@ class Mutabilities(object):
 
                         for a in alts:
                             # self.mutabilities_by_pos[pos].append(MutabilityValue(ref, a, mutability))
+                            # logger.info(f"{pos}\t{ref}\t{a}\t{mutability}")
                             self.mutabilities_by_pos[pos][(ref, a)] =  mutability
                             
 
