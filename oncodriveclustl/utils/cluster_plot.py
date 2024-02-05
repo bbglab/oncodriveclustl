@@ -123,6 +123,37 @@ def cluster_coords(element, clusters_tree, strand, length, concat_regions_d):
     return plot_cluster_xcoords
 
 
+def cluster_coords_sig(element, clusters_tree, strand, length, concat_regions_d, pvalue_threshold):
+    """
+    Generate info to plot clusters
+
+    Args:
+        element (str): element under analysis
+        clusters_tree (IntervalTree): intervaltree of observed clusters for an element
+        strand (str): positive or negative strand
+        length (int): length of the genomic element
+        concat_regions_d (dict): dictionary of genomic region start (keys) and corresponding concatenated sequence
+            index of start and end
+
+    Returns:
+        plot_cluster_xcoords (list): list of indexes to plot observed clusters.
+            Indexes are reversed for negative strand elements
+    """
+    plot_cluster_xcoords = []
+    for region in clusters_tree:
+        for cluster, info in region.data.items():
+            if info['p'] < pvalue_threshold:
+                for cluster_margin in ['left_m', 'right_m']:
+                    index = info[cluster_margin][0] + concat_regions_d[element][region[0]][0]
+                    plot_cluster_xcoords.append(index)
+    if strand == '-':
+        plot_cluster_xcoords = list(map(lambda x: length - x, plot_cluster_xcoords))
+
+    return plot_cluster_xcoords
+
+
+
+
 def clusters_plot(element,
                   plot_regions_xcoords,
                   smooth,
@@ -268,3 +299,52 @@ def make_clustplot(elements_results, clusters_results, global_info_results, dire
         info_cluster_plots.append(info)
 
     return info_cluster_plots
+
+
+def make_clustplot_sig(elements_results, clusters_results, global_info_results, directory):
+    """
+
+    Args:
+        elements_results (dict): keys are elements, values are elements results
+        clusters_results (dict): keys are elements, values are cluster results
+        global_info_results (dict): keys are elements, values are global information about the element
+        directory (str): path to output
+
+    Returns:
+        info (str): message
+
+    """
+    info_cluster_plots = []
+
+    # Parse
+    for element, data in elements_results.items():
+        _, _, _, _, score, _, pvalue, _ = data
+        observed_clusters, smooth_tree, probabilities = clusters_results[element]
+        regions, _, strand, mutations, length, _ = global_info_results[element]
+
+        if type(observed_clusters) != float:
+
+            # Preprocess data
+            concat_regions_d, plot_regions_xcoords = concat_regions_to_plot(element, regions, strand)
+            smooth = concat_smooth(smooth_tree, strand)
+            mutations_xcoords_number = mutations_index(element, mutations, concat_regions_d, strand, length)
+            plot_cluster_xcoords = cluster_coords_sig(element, observed_clusters, strand, length, concat_regions_d, 0.05)
+            if len(plot_cluster_xcoords) > 0:
+                output = os.path.join(directory, '{}_plot.png'.format(element.split('//')[0]))
+                # Plot
+                clusters_plot(element,
+                            plot_regions_xcoords,
+                            smooth,
+                            mutations_xcoords_number,
+                            plot_cluster_xcoords,
+                            output,
+                            )
+                info = 'Cluster plot for {} generated at: {}'.format(element.split('//')[0], output)
+            else:
+                info = 'No significant clusters found in {}. No cluster plot is generated for this element'.format(element.split('//')[0])
+        else:
+            info = 'No clusters found in {}. No cluster plot is generated for this element'.format(element.split('//')[0])
+        info_cluster_plots.append(info)
+
+    return info_cluster_plots
+

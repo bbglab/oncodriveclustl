@@ -80,6 +80,7 @@ LOGS = {
 @click.option('--concatenate', is_flag=True, help='Calculate clustering on concatenated genomic regions (e.g., exons '
                                                   'in coding sequences)')
 @click.option('--clustplot', is_flag=True, help='Generate a needle plot with clusters for an element')
+@click.option('--clustplotsig', is_flag=True, help='Generate a needle plot with the significant clusters for an element')
 @click.option('--qqplot', is_flag=True, help='Generate a quantile-quantile (Q-Q) plot for a dataset')
 @click.option('--gzip', is_flag=True, help='Gzip compress files')
 def main(input_file,
@@ -105,6 +106,7 @@ def main(input_file,
          log_level,
          concatenate,
          clustplot,
+         clustplotsig,
          qqplot,
          gzip
          ):
@@ -402,7 +404,17 @@ def main(input_file,
     logger.info('Clusters results calculated')
 
     # Cluster plot
-    if clustplot:
+    if clustplotsig:
+        info_cluster_plots = cplot.make_clustplot_sig(
+            elements_results,
+            clusters_results,
+            global_info_results,
+            directory=output_directory
+        )
+        for message in info_cluster_plots:
+            logger.info(message)
+
+    elif clustplot:
         info_cluster_plots = cplot.make_clustplot(
             elements_results,
             clusters_results,
