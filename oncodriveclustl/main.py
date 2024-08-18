@@ -104,42 +104,6 @@ def main(input_file,
          qqplot,
          gzip
          ):
-    """
-    OncodriveCLUSTL is a sequence based clustering method to identify cancer drivers across the genome
-
-    Args:
-        input_file (str): path to mutations file
-        regions_file (str): path to input genomic coordinates file
-        output_directory(str): path to output directory. Output files will be generated in it.
-        input_signature (str): path to file containing input context based mutational probabilities.
-            By default (when no input signatures), OncodriveCLUSTL will calculate them from the mutations input file.
-        elements_file (str): path to file containing one element per row (optional) to analyzed the listed elements.
-            By default, OncodriveCLUSTL analyzes all genomic elements contained in `regions_file`.
-        elements (str): genomic element symbol (optional). The analysis will be performed only on the specified GEs.
-        genome (str): genome to use: 'hg38', 'hg19', 'mm10', 'c3h', 'car', 'cast' and 'f344'
-        element_mutations (int): minimum number of mutations per genomic element to undertake analysis
-        cluster_mutations (int): minimum number of mutations to define a cluster
-        smooth_window (int): Tukey kernel smoothing window length
-        cluster_window (int): clustering window length
-        kmer (int): context nucleotides to calculate the mutational probabilities (trinucleotides or pentanucleotides)
-        n_simulations (int): number of simulations
-        simulation_mode (str): simulation mode
-        simulation_window (int): window length to simulate mutations
-        signature_calculation (str): signature calculation, mutation frequencies (default) or mutation counts
-            normalized by k-mer region counts
-        signature_group (str): header of the column to group signatures. One signature will be computed for each group
-        cores (int): number of CPUs to use
-        seed (int): seed
-        log_level (str): verbosity of the logger
-        concatenate (bool): flag to calculate clustering on collapsed genomic regions (e.g., coding regions in a gene)
-        clustplot (bool): flag to generate a needle plot with clusters for an element
-        qqplot (bool): flat to generate a quantile-quantile (QQ) plot for a dataset
-        gzip (bool): flag to generate GZIP compressed output files
-
-    Returns:
-        None
-
-    """
 
     global logger
 

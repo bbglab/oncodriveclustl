@@ -15,6 +15,8 @@ dataset_randomizator.py
 Distance_mutations.ipynb
 oncodriveclustl/count_mutations.py
 oncodriveclustl/mutations_intogen_local.txt
+example/output
+oncodriveclustl.tar
 
 # Singularity images
 *.simg
@@ -34,8 +36,14 @@ oncodriveclustl/mutations_intogen_local.txt
 # gEdit temporal files
 *~
 
+# vscode
+.vscode/
+
 # Python bytecode
+__pycache__
 *.pyc
 *.egg-info/
 dist/
 
+# uv files
+.venv/

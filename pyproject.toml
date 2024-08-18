@@ -1,0 +1,42 @@
+[project]
+name = "oncodriveclustl"
+dynamic = ["version"]
+description = "OncodriveCLUSTL is a clustering method to identify cancer drivers"
+authors = [
+    { name = "BBGLab (Barcelona Biomedical Genomics Lab)", email = "bbglab@irbbarcelona.org" }
+]
+dependencies = [
+    "bgparsers==0.10",
+    "bgreference==0.7",
+    "bgsignature==0.2",
+    "click==8.1.7",
+    "daiquiri==3.2.5.1",
+    "intervaltree==3.1.0",
+    "matplotlib==3.9.2",
+    "numpy==2.0.1",
+    "pandas==2.2.2",
+    "scikit-learn==1.5.1",
+    "scipy==1.14.0",
+    "statsmodels==0.14.2",
+    "tqdm==4.66.5",
+]
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { file = "LICENSE" }
+
+[project.scripts]
+"oncodriveclustl" = "oncodriveclustl.main:main"
+"parse_vcf" = "oncodriveclustl.parsers.vcf:vcf_to_tsv"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "oncodriveclustl/__init__.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["oncodriveclustl"]
