@@ -1,0 +1,167 @@
+name: Build and Publish
+
+on:
+  push:
+    tags:
+      - "**"
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+env:
+  TERM: xterm
+
+jobs:
+  packages-build:
+    name: Build packages
+    runs-on: ubuntu-latest
+    env:
+      RUFF_FORMAT: github
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Check format
+        run: |
+          make check-format || true
+          BOLDRED=$(tput bold && tput setaf 1)
+          RESET=$(tput sgr0)
+          echo "${BOLDRED}==> We won't penalise formatting errors for the time being, but we will in the future.${RESET}"
+      
+      - name: Check lint
+        run: |
+          make check-lint || true
+          BOLDRED=$(tput bold && tput setaf 1)
+          RESET=$(tput sgr0)
+          echo "${BOLDRED}==> We won’t enforce linting errors for the time being, but we will in the future.${RESET}"
+
+      - name: Build packages
+        run: make build-dist
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-packages
+          path: dist
+
+  docker-build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Check Dockerfile
+        run: make check-docker
+          
+      - name: Build Docker image
+        run: make save-image
+
+      # TODO: Enable this when we figure out how to run it without having to download several Gigabytes of data.
+      # - name: Test Docker image
+      #   run: make run-example
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: oncodriveclustl.tar
+
+  check-version:
+    name: Check version
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - packages-build
+      - docker-build
+  
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - uses: astral-sh/setup-uv@v4
+      
+      - name: Check version matching the tag
+        run: make check-version
+
+  packages-publish:
+    name: Publish packages
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - check-version
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - uses: astral-sh/setup-uv@v4
+      
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: python-packages
+          path: dist
+      
+      - name: Publish to PyPI
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        if: ${{ env.PYPI_TOKEN != '' }}
+        run: make publish-dist
+
+  docker-push:
+    name: Push Docker image
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    needs:
+      - check-version
+
+    steps:
+      - if: ${{ env.DOCKER_USERNAME != '' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Login to DockerHub
+        if: ${{ env.DOCKER_USERNAME != '' }}
+        run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Push Docker image
+        if: ${{ env.DOCKER_USERNAME != '' }}
+        run: make load-image push-image
